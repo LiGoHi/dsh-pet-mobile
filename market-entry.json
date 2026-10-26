@@ -1,15 +1,28 @@
 {
-  "name": "dsh-pet-desktop",
-  "owner": "REPLACE_WITH_YOUR_GITHUB_NAME",
-  "url": "https://github.com/REPLACE_WITH_YOUR_GITHUB_NAME/dsh-pet-desktop",
-  "page": "https://awesome-dsh-plugin.com/p/REPLACE_WITH_YOUR_GITHUB_NAME/dsh-pet-desktop/",
+  "name": "dsh-pet-mobile",
+  "owner": "LiGoHi",
+  "url": "https://github.com/LiGoHi/dsh-pet-mobile",
+  "page": "https://awesome-dsh-plugin.com/p/LiGoHi/dsh-pet-mobile/",
   "category": "桌面/宠物",
   "description": {
-    "en": "Android desktop companion for dsh-pet: a transparent overlay that mirrors the in-page pet (animations, speech bubbles, visibility, size) and feeds messages back into the DSH conversation. Ships a 53 KB shell APK that must be installed once by the user (Android requires confirmation for APK installs).",
-    "zh": "dsh-pet 的安卓桌面端：用一个透明悬浮窗养同一只宠物，动作、气泡、显示位置、尺寸都与页面里那只双向同步，并能把桌面输入的话送进 DSH 会话。附带一个 53KB 的壳 APK（Android 要求用户确认安装，无法静默装包）。"
+    "en": "Android desktop companion for dsh-pet: a transparent overlay that mirrors the in-page pet (animations, speech bubbles, visibility, size) and feeds messages back into the DSH conversation. Ships a 53 KB shell APK that the user must install once (Android requires confirmation).",
+    "zh": "dsh-pet 的安卓桌面端：用透明悬浮窗养同一只宠物，动作、气泡、显示位置、尺寸都与页面里那只双向同步，并能把桌面输入的话送进 DSH 会话。附带 53KB 壳 APK（Android 要求用户确认安装）。"
   },
-  "npm": "dsh-pet-desktop",
-  "install": "dsh plugin --profile web add github:REPLACE_WITH_YOUR_GITHUB_NAME/dsh-pet-desktop",
-  "capabilities": ["shell", "fs-read", "fs-write", "network"],
-  "topics": ["dsh", "dsh-plugin", "dsh-pet", "cordis", "deepseek-harness", "android", "overlay"]
+  "npm": null,
+  "install": "dsh plugin --profile web add github:LiGoHi/dsh-pet-mobile",
+  "capabilities": [
+    "shell",
+    "fs-read",
+    "fs-write",
+    "network"
+  ],
+  "topics": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-pet",
+    "cordis",
+    "deepseek-harness",
+    "android",
+    "overlay"
+  ]
 }

@@ -1,4 +1,4 @@
-# dsh-pet-desktop
+# dsh-pet-mobile
 
 把 [dsh-pet](https://github.com/PC2005-cloud/dsh-pet) 的**桌面端**接进 DSH：在安卓手机上用一个透明悬浮窗养同一只宠物。
 动作、气泡、显示位置、尺寸都与页面里那只双向同步；页面端需要的几处补丁由本插件在每次启动时自动维护。
@@ -15,7 +15,7 @@
 ## 安装
 
 ```bash
-dsh plugin --profile web add dsh-pet-desktop
+dsh plugin --profile web add github:LiGoHi/dsh-pet-mobile
 ```
 
 然后**重启 `dsh web`**（插件在启动时才会执行补丁与托管）。

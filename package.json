@@ -1,7 +1,7 @@
 {
-  "name": "dsh-pet-desktop",
+  "name": "dsh-pet-mobile",
   "version": "0.1.0",
-  "description": "把 dsh-pet 的桌面端接进 DSH：在安卓上用一个透明悬浮窗养同一只宠物，动作与气泡跟页面那只双向同步，并把页面端需要的补丁随插件一起维护。",
+  "description": "dsh-pet 的手机端：安卓透明悬浮窗养同一只宠物，动作/气泡/显示位置/尺寸与页面那只双向同步，并可把桌面输入的话送进 DSH 会话。",
   "type": "module",
   "main": "lib/index.js",
   "files": [
