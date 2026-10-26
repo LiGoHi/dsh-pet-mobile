@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<style>
+  html,body{margin:0;padding:0;background:transparent;overflow:hidden;
+    -webkit-tap-highlight-color:transparent}
+  /* 原版 .dsh-pet-chat 的样式 */
+  .dsh-pet-chat{
+    position:absolute;left:0;top:0;right:0;
+    background:rgba(255,255,255,.98);border:1px solid rgba(0,0,0,.12);border-radius:10px;
+    box-shadow:0 10px 32px rgba(0,0,0,.22);color:#2b2b2b;font-size:14px;line-height:1.5;
+    font-family:'ShangshouSoftCandy','Yuanti SC','YouYuan','幼圆','Comic Sans MS','PingFang SC','Microsoft YaHei',sans-serif;
+    user-select:none;overflow:hidden}
+  .dsh-pet-chat *{box-sizing:border-box}
+  .dsh-pet-chat-input{display:block;width:100%;border:none;outline:none;background:transparent;
+    padding:8px 11px 9px;font-size:14px;line-height:1.45;color:#2b2b2b;font-family:inherit;
+    resize:none;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere}
+  .dsh-pet-chat-input::placeholder{color:rgba(43,43,43,.45)}
+  .dsh-pet-chat-input:disabled{opacity:.55}
+  .dsh-pet-chat-err{color:#d94f3d;font-size:12px;padding:0 12px 8px;white-space:pre-wrap;
+    overflow-wrap:anywhere;display:none}
+  .row{display:flex;gap:6px;justify-content:flex-end;padding:0 8px 8px}
+  .btn{border:none;background:rgba(43,99,255,.10);color:#2b63ff;font-family:inherit;font-size:12px;
+    padding:5px 10px;border-radius:7px}
+  .btn:active{background:rgba(43,99,255,.2)}
+  .btn.ghost{background:rgba(0,0,0,.05);color:#5b6068}
+</style>
+</head>
+<body>
+<div class="dsh-pet-chat">
+  <textarea id="input" class="dsh-pet-chat-input" rows="1" placeholder="想说什么…"></textarea>
+  <div id="err" class="dsh-pet-chat-err"></div>
+  <div class="row">
+    <button class="btn ghost" id="toPet">跟宠物聊</button>
+    <button class="btn" id="toDsha">发给 DSHA</button>
+  </div>
+</div>
+<script>
+  var input = document.getElementById('input');
+  var err = document.getElementById('err');
+  function autosize() {
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 96) + 'px';
+  }
+  input.addEventListener('input', autosize);
+
+  function send(target) {
+    var text = input.value.trim();
+    if (!text) return;
+    if (window.Android && Android.send) Android.send(text, target);
+  }
+  document.getElementById('toDsha').addEventListener('click', function () { send('dsha'); });
+  document.getElementById('toPet').addEventListener('click', function () { send('pet'); });
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send('dsha'); }
+  });
+  window.setError = function (msg) {
+    err.textContent = msg || '';
+    err.style.display = msg ? 'block' : 'none';
+  };
+  window.clearInput = function () { input.value = ''; autosize(); };
+  window.focusInput = function () { input.focus(); };
+  setTimeout(function () { input.focus(); }, 120);
+  autosize();
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+{
+  "name": "dsh-pet-desktop",
+  "version": "0.1.0",
+  "description": "把 dsh-pet 的桌面端接进 DSH：在安卓上用一个透明悬浮窗养同一只宠物，动作与气泡跟页面那只双向同步，并把页面端需要的补丁随插件一起维护。",
+  "type": "module",
+  "main": "lib/index.js",
+  "files": [
+    "lib/",
+    "assets/",
+    "scripts/",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md"
+  ],
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-pet",
+    "desktop-pet",
+    "android",
+    "overlay",
+    "悬浮窗",
+    "桌宠"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "compatibility": {
+      "dshReleases": {
+        "0.2.1-rc.2": "compatible"
+      }
+    }
+  },
+  "peerDependencies": {
+    "dsh-pet": ">=0.3.0"
+  },
+  "peerDependenciesMeta": {
+    "dsh-pet": {
+      "optional": true
+    }
+  }
+}

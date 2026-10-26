@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>
+  html{--f:20px}
+  html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+  /* 双缓冲：两块 video 叠着放，换源时旧的保持可见，新的就绪后交叉淡入 → 不再闪白 */
+  #stage{position:absolute;left:0;right:0;bottom:0;height:74%}
+  video.layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
+    background:transparent;opacity:0;transform-origin:50% 60%}
+  /* 不做淡入淡出：alpha 视频在半透明混合期容易露黑底，改为首帧就绪后硬切 */
+  video.layer.on{opacity:1}
+  #fallback{position:absolute;left:0;right:0;bottom:0;height:74%;width:100%;object-fit:contain;display:none}
+  /* 气泡：原版 .dsh-pet-bubble 的样式 */
+  #bubble{
+    position:absolute;left:50%;top:2px;transform:translateX(-50%);
+    width:max-content;min-width:calc(var(--f)*5.7143);max-width:92%;
+    padding:calc(var(--f)*0.4835) calc(var(--f)*0.6593);
+    border-radius:calc(var(--f)*0.7692);
+    background:rgba(255,255,255,.92);color:#2b2b2b;
+    font-family:"ShangshouSoftCandy","Yuanti SC","YouYuan","幼圆","Comic Sans MS","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:var(--f);line-height:1.6;
+    box-shadow:0 calc(var(--f)*0.1978) calc(var(--f)*0.7692) rgba(0,0,0,.14),0 1px 3px rgba(0,0,0,.08);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    opacity:0;transition:opacity .25s ease;white-space:normal;overflow-wrap:break-word;
+    z-index:3;pointer-events:none}
+  #bubble::after{
+    content:"";position:absolute;left:50%;bottom:calc(var(--f)*-0.3736);transform:translateX(-50%);
+    border:calc(var(--f)*0.3736) solid transparent;border-top-color:rgba(255,255,255,.92);border-bottom:none}
+  #bubble.show{opacity:1}
+  #dbg{position:absolute;left:6px;top:6px;right:6px;z-index:9;
+    background:#ff9500;color:#161a22;border-radius:8px;padding:5px 8px;
+    font:11px/1.35 ui-monospace,monospace;word-break:break-all}
+  #dbg.err{background:#ff453a;color:#fff}
+</style>
+</head>
+<body>
+<div id="dbg">载入中…</div>
+<div id="bubble"></div>
+<div id="stage">
+  <video id="va" class="layer on" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+  <video id="vb" class="layer" muted playsinline webkit-playsinline preload="auto" disablepictureinpicture></video>
+  <img id="fallback" src="fallback.png" alt="">
+</div>
+<script src="anim/index.js"></script>
+<script>
+  var A = document.getElementById('va'), B = document.getElementById('vb');
+  var bubble = document.getElementById('bubble'), dbg = document.getElementById('dbg');
+  var fallback = document.getElementById('fallback');
+  var IDLE = '待机呼吸休闲';
+  var CLICKS = ['点击回应-开心跃动','点击回应-元气挥手','点击回应-害羞惊讶','点击回应-傲娇生气','点击回应-挠痒咯咯笑'];
+  var IDLE_EXTRAS = ['哈欠连天','超大伸懒腰','悠闲哼歌','原地小憩沉眠','轻快摇摆舞','东张西望'];
+  var front = A, back = B;
+  var playGen = 0;
+  var busy = false, started = false, facing = 'left', bubbleTimer = 0;
+
+  function srcOf(name) {
+    var f = (window.PET_FILES || {})[name];
+    return f ? ('anim/' + f + '.webm') : null;
+  }
+  function note(msg, isErr) {
+    dbg.textContent = msg; dbg.className = isErr ? 'err' : ''; dbg.style.display = 'block';
+    // 页面里的报错也回传给容器，方便从日志里看（不依赖截图）
+    if (isErr) {
+      try {
+        fetch('http://127.0.0.1:8099/applog?e=' + encodeURIComponent('[page] ' + msg), { cache: 'no-store' })
+          .catch(function () {});
+      } catch (e) {}
+    }
+  }
+  function ready() { started = true; dbg.style.display = 'none'; fallback.style.display = 'none'; }
+  function applyFacing() {
+    var t = (facing === 'right') ? 'scaleX(-1)' : '';
+    A.style.transform = t; B.style.transform = t;
+  }
+  function failed(msg) { note(msg, true); fallback.style.display = 'block'; }
+
+  /** 双缓冲切换：新片先在后层就绪，再交叉淡入，旧片随后暂停。 */
+  function play(name, loop, after) {
+    var src = srcOf(name);
+    if (!src) { failed('素材缺失：' + name); return; }
+    var incoming = back;
+    incoming.muted = true;
+    incoming.loop = !!loop;
+    incoming.onended = null;
+    incoming.src = src;
+    try { incoming.currentTime = 0; } catch (e) {}
+    if (incoming._pt) { clearTimeout(incoming._pt); incoming._pt = null; }
+    var myGen = ++playGen;
+    var swapped = false;
+    function swap() {
+      if (swapped) return;
+      if (myGen !== playGen) return;   // 已经被后来的一次 play() 取代，这次切换作废
+      swapped = true;
+      if (incoming !== front) {
+        incoming.classList.add('on');
+        front.classList.remove('on');
+      }
+      var old = front;
+      front = incoming; back = old;
+      old._pt = setTimeout(function () {
+        old._pt = null;
+        if (old === front) return;          // 又被选回来了：绝不能 pause，否则打断它的 play()
+        try { old.pause(); } catch (e) {}
+      }, 80);
+      ready();
+    }
+    var bail = setTimeout(swap, 450);   // 兜底：出帧回调不来也要切
+    function arm() {
+      if (typeof incoming.requestVideoFrameCallback === 'function') {
+        incoming.requestVideoFrameCallback(function () {
+          clearTimeout(bail);
+          swap();
+        });
+      } else {
+        setTimeout(swap, 40);
+      }
+    }
+    incoming.addEventListener('playing', arm, { once: true });
+    var p = incoming.play();
+    if (p && p.catch) p.catch(function (e) {
+      if (e && e.name === 'AbortError') return;   // 被新的切换打断，属正常
+      note('play() 被拒：' + e, true);
+      // 自动播放被拒：等一次用户触摸再试
+      var retry = function () {
+        document.removeEventListener('touchstart', retry, true);
+        document.removeEventListener('mousedown', retry, true);
+        var q = incoming.play();
+        if (q && q.catch) q.catch(function () {});
+      };
+      document.addEventListener('touchstart', retry, true);
+      document.addEventListener('mousedown', retry, true);
+    });
+    if (!loop) {
+      incoming.onended = function () { incoming.onended = null; if (after) after(); };
+    }
+    applyFacing();
+  }
+
+  function backToIdle() { busy = false; play(IDLE, true, null); }
+  function playOnce(name) { if (!name) return false; busy = true; play(name, false, backToIdle); return true; }
+
+  window.petTap = function () {
+    if (busy) return null;
+    var pick = CLICKS[Math.floor(Math.random() * CLICKS.length)];
+    playOnce(pick);
+    return pick;
+  };
+  window.petIdleAction = function () {
+    if (busy) return null;
+    var pick = IDLE_EXTRAS[Math.floor(Math.random() * IDLE_EXTRAS.length)];
+    playOnce(pick);
+    return pick;
+  };
+  window.petPlayName = function (name) {
+    if (!name) return false;
+    if (name === IDLE) { busy = false; play(IDLE, true, null); return true; }
+    return playOnce(name);
+  };
+  /** 'left' / 'right'：与页面一致，right 时镜像（原画朝左） */
+  window.petFace = function (f) { facing = (f === 'right' || f === -1) ? 'right' : 'left'; applyFacing(); };
+  window.petGrab = function (on) {
+    if (on) { busy = true; play('被鼠标拖拽悬空反馈', true, null); }
+    else { busy = false; play(IDLE, true, null); }
+  };
+  window.petSay = function (text, ms) {
+    if (!text) return;
+    bubble.textContent = text;
+    bubble.classList.add('show');
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(function () { bubble.classList.remove('show'); }, ms || 4000);
+  };
+  window.petSetSize = function (px) { document.documentElement.style.setProperty('--f', px + 'px'); };
+  window.petDebug = function (msg) { note(String(msg), true); };
+
+  play(IDLE, true, null);
+  setTimeout(function () { if (!started) failed('2.5s 仍未播放'); }, 2500);
+</script>
+</body>
+</html>

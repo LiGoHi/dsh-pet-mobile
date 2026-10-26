@@ -1,0 +1,5 @@
+# dsh-pet-desktop bundle patch: 把"桌面端注入助手"挂进配置树。
+# 纯子进程管理，不声明模块级 inject，缺服务也不会让整棵插件树 pending。
+- insert:
+    - id: dsh-pet-desktop
+      name: 'dsh-pet-desktop'

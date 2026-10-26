@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<style>
+  html,body{margin:0;padding:0;height:100%;background:transparent;overflow:hidden;
+    -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;
+    font-family:'Microsoft YaHei UI','Segoe UI','PingFang SC',sans-serif}
+  #root{position:relative;width:100%;height:100%}
+  .dsh-pet-menu{position:absolute;inset:0;color:#2b2b2b;font-size:13px;line-height:1.5}
+  .dsh-pet-menu,.dsh-pet-menu *{box-sizing:border-box}
+  .dsh-pet-menu-column{position:absolute;min-width:150px;max-width:280px;padding:4px;
+    background:rgba(255,255,255,.98);border:1px solid rgba(0,0,0,.12);border-radius:8px;
+    box-shadow:0 8px 28px rgba(0,0,0,.2);max-height:calc(100% - 8px);overflow-y:auto;
+    scrollbar-width:thin;scrollbar-color:rgba(0,0,0,.22) transparent;display:none}
+  .dsh-pet-menu-column::-webkit-scrollbar{width:8px;height:8px}
+  .dsh-pet-menu-column::-webkit-scrollbar-track{background:transparent}
+  .dsh-pet-menu-column::-webkit-scrollbar-thumb{background:rgba(0,0,0,.16);border-radius:4px;
+    border:2px solid transparent;background-clip:content-box}
+  .dsh-pet-menu-item{position:relative;display:flex;align-items:center;justify-content:space-between;
+    gap:14px;padding:5px 12px;border-radius:6px;white-space:nowrap;cursor:default}
+  .dsh-pet-menu-item:active{background:rgba(43,99,255,.14)}
+  .dsh-pet-menu-item>span:first-child{min-width:0;overflow:hidden;text-overflow:ellipsis}
+  .dsh-pet-menu-hint{color:#9aa0a6;font-size:12px;flex:none;white-space:nowrap}
+  .dsh-pet-menu-arrow{color:#9aa0a6;font-size:12px;flex:none}
+  .dsh-pet-menu-sep{height:1px;margin:4px 8px;background:rgba(0,0,0,.08)}
+</style>
+</head>
+<body>
+<div id="root"><div class="dsh-pet-menu" id="menu"></div></div>
+<script>
+  var menu = document.getElementById('menu');
+  var panels = [];        // 每层一个 panel
+  var openChild = new Map();
+
+  function hideChain(panel) {
+    panel.style.display = 'none';
+    var child = openChild.get(panel);
+    if (child) { openChild.delete(panel); hideChain(child); }
+  }
+
+  function showPanel(panel, item) {
+    var r = item.getBoundingClientRect();
+    panel.style.left = ''; panel.style.top = '';
+    panel.style.display = 'block';
+    var host = menu.getBoundingClientRect();
+    var left = r.right + 4 - host.left;
+    if (left + panel.offsetWidth > host.width - 4) left = r.left - panel.offsetWidth - 4 - host.left;
+    left = Math.max(4, left);
+    var top = r.top - host.top;
+    if (top + panel.offsetHeight > host.height - 4) top = Math.max(4, host.height - 4 - panel.offsetHeight);
+    panel.style.left = left + 'px';
+    panel.style.top = top + 'px';
+  }
+
+  function buildPanel(nodes, depth) {
+    var panel = document.createElement('div');
+    panel.className = 'dsh-pet-menu-column';
+    menu.appendChild(panel);
+    nodes.forEach(function (node) {
+      if (node.sep) {
+        var sep = document.createElement('div');
+        sep.className = 'dsh-pet-menu-sep';
+        panel.appendChild(sep);
+        return;
+      }
+      var item = document.createElement('div');
+      item.className = 'dsh-pet-menu-item';
+      var label = document.createElement('span');
+      label.textContent = node.label;
+      item.appendChild(label);
+      if (node.children) {
+        var arrow = document.createElement('span');
+        arrow.className = 'dsh-pet-menu-arrow';
+        arrow.textContent = '▸';
+        item.appendChild(arrow);
+        var child = buildPanel(node.children, depth + 1);
+        openChild.set(panel, null);
+        item.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          var cur = openChild.get(panel);
+          if (cur === child) { hideChain(child); openChild.delete(panel); return; }
+          if (cur) { hideChain(cur); openChild.delete(panel); }
+          showPanel(child, item);
+          openChild.set(panel, child);
+        });
+      } else {
+        if (node.hint) {
+          var hint = document.createElement('span');
+          hint.className = 'dsh-pet-menu-hint';
+          hint.textContent = node.hint;
+          item.appendChild(hint);
+        }
+        item.addEventListener('click', function (ev) {
+          ev.stopPropagation();
+          if (window.Android && Android.pick) Android.pick(node.id);
+        });
+      }
+      panel.appendChild(item);
+    });
+    panel.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    return panel;
+  }
+
+  window.setTree = function (tree, ax, ay) {
+    menu.innerHTML = '';
+    panels = [buildPanel(tree, 0)];
+    var p0 = panels[0];
+    p0.style.display = 'block';
+    var w = window.innerWidth, h = window.innerHeight;
+    var left = Math.max(4, Math.min(ax || 4, w - p0.offsetWidth - 4));
+    var top = Math.max(4, Math.min(ay || 4, h - p0.offsetHeight - 4));
+    p0.style.left = left + 'px';
+    p0.style.top = top + 'px';
+  };
+
+  // 点空白处关掉菜单
+  document.addEventListener('click', function () {
+    if (window.Android && Android.closeMenu) Android.closeMenu();
+  }, false);
+</script>
+</body>
+</html>
