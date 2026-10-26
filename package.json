@@ -1,6 +1,6 @@
 {
   "name": "dsh-pet-mobile",
-  "version": "0.2.8",
+  "version": "0.6.0",
   "description": "dsh-pet 的手机端：安卓透明悬浮窗养同一只宠物，动作/气泡/显示位置/尺寸与页面那只双向同步，并可把桌面输入的话送进 DSH 会话。",
   "type": "module",
   "main": "lib/index.js",

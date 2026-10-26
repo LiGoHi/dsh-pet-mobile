@@ -297,16 +297,15 @@ const TAIL = `
           report({ pageDisplay: visible ? 'shown' : 'hidden' });
           // dsh-pet 从"仅桌面"切回"仅页面"时偶尔不会重新挂载：切到"应显示"后 2.5 秒还没有视频，
           // 就自己刷一次页面（60 秒内最多一次），保证宠物一定回来。
-          if (visible) {
-            setTimeout(function () {
-              if (document.querySelectorAll('video').length === 0
-                  && Date.now() - (window.__petReloadAt || 0) > 60000) {
-                window.__petReloadAt = Date.now();
-                report({ selfReload: 'pet-missing-after-display-change' });
-                location.reload();
-              }
-            }, 2500);
-          }
+          setTimeout(function () {
+            var hasPet = document.querySelectorAll('video').length > 0;
+            var wrong = (visible && !hasPet) || (!visible && hasPet);
+            if (wrong && Date.now() - (window.__petReloadAt || 0) > 60000) {
+              window.__petReloadAt = Date.now();
+              report({ selfReload: visible ? 'pet-missing' : 'pet-still-visible' });
+              location.reload();
+            }
+          }, 2500);
         }
         var vids = document.querySelectorAll('video');
         for (var k = 0; k < vids.length; k++) {
