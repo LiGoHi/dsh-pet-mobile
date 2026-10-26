@@ -137,16 +137,23 @@ const TAIL = `
     { base: 'http://127.0.0.1:8099', inbox: '/inbox', size: '/pet-size', report: '/report' },
     { base: '',                      inbox: '/pet-desktop/api/inbox', size: '/pet-desktop/api/size', report: '/pet-desktop/api/report' }
   ];
-  var ep = 0;
-  function url(kind, query) {
-    var e = EP[ep];
-    return e.base + e[kind] + (query || '');
+  // 每次请求都从 8099 开始试，失败才用插件路由——不"记住"失败，避免助手短暂重启后永久失联
+  function epFetch(kind, query, init) {
+    var i = 0;
+    function attempt() {
+      if (i >= EP.length) return Promise.reject(new Error('no-endpoint'));
+      var e = EP[i++];
+      var opts = init || {};
+      opts.cache = 'no-store';
+      return fetch(e.base + e[kind] + (query || ''), opts).then(function (r) {
+        if (!r.ok) throw new Error('http ' + r.status);
+        return r;
+      }).catch(function () { return attempt(); });
+    }
+    return attempt();
   }
   function report(obj) {
-    try {
-      fetch(url('report', '?d=' + encodeURIComponent(JSON.stringify(obj))), { cache: 'no-store' })
-        .catch(function () { if (ep === 0) { ep = 1; } });
-    } catch (e) {}
+    try { epFetch('report', '?d=' + encodeURIComponent(JSON.stringify(obj))).catch(function () {}); } catch (e) {}
   }
 
   // 1) 自播动画外播的"兜底"：如果内部钩子（switchTo 补丁）没打上，
@@ -217,31 +224,61 @@ const TAIL = `
     }) || null;
   }
   function inject(text) {
-    var el = findComposer();
-    if (!el) { report({ ok: false, reason: 'no-composer' }); return; }
-    el.focus();
-    if (el.tagName === 'TEXTAREA') {
-      var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
-      setter.call(el, text);
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-    } else {
-      el.textContent = text;
-      el.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
-    }
-    setTimeout(function () {
+    var tries = 0;
+    function clickSend(el, n) {
       var btn = findSendButton();
-      if (btn) { btn.click(); report({ ok: true, clicked: true }); return; }
-      ['keydown', 'keypress', 'keyup'].forEach(function (type) {
-        el.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-      });
-      report({ ok: true, clicked: false, reason: 'no-send-button' });
-    }, 150);
+      var disabled = !btn || btn.disabled || btn.getAttribute('aria-disabled') === 'true';
+      if (!disabled) { try { btn.click(); } catch (e) {} }
+      setTimeout(function () {
+        var left = ((el.value !== undefined ? el.value : el.textContent) || '').trim();
+        if (left.length > 0) {
+          if (n < 2) return clickSend(el, n + 1);
+          // 点了三次还有残留：回车兜底
+          ['keydown', 'keypress', 'keyup'].forEach(function (type) {
+            el.dispatchEvent(new KeyboardEvent(type, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          });
+          report({ ok: true, clicked: true, fallbackEnter: true });
+          return;
+        }
+        report({ ok: true, clicked: true, tries: n + 1 });
+      }, 420);
+    }
+    function attempt() {
+      var el = findComposer();
+      if (!el) {
+        if (++tries < 3) return setTimeout(attempt, 400);
+        report({ ok: false, reason: 'no-composer' });
+        return;
+      }
+      try { el.focus(); } catch (e) {}
+      try {
+        if (el.tagName === 'TEXTAREA') {
+          var setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value').set;
+          setter.call(el, text);
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        } else {
+          el.textContent = text;
+          el.dispatchEvent(new InputEvent('input', { bubbles: true, data: text, inputType: 'insertText' }));
+        }
+      } catch (e) {}
+      setTimeout(function () {
+        var now = ((el.value !== undefined ? el.value : el.textContent) || '').trim();
+        if (!now) {
+          if (++tries < 3) return setTimeout(attempt, 400);
+          report({ ok: false, reason: 'composer-empty-after-write' });
+          return;
+        }
+        clickSend(el, 0);
+      }, 240);
+    }
+    attempt();
   }
+
   function tickInbox() {
-    fetch(url('inbox'), { cache: 'no-store' })
+    epFetch('inbox')
       .then(function (r) { return r.json(); })
       .then(function (j) { if (j && j.item && j.item.text) inject(j.item.text); })
-      .catch(function () { if (ep === 0) ep = 1; })
+      .catch(function () {})
       .then(function () { setTimeout(tickInbox, 2000); });
   }
 
@@ -253,11 +290,23 @@ const TAIL = `
       .then(function (j) {
         var pets = (j && j.main && j.main.pets) || [];
         var visible = pets.some(function (p) { return p.display === 'web' || p.display === 'both'; });
+        // 显隐交给 dsh-pet 自己（它按 display 卸载/挂载）。这里只记录，不再改 DOM——
+        // 之前那套 style.display 兜底既选不中节点（宠物在 portal 里），又容易和插件打架。
         if (visible !== lastDisplay) {
           lastDisplay = visible;
-          var roots = document.querySelectorAll('.dsh-pet-root');
-          for (var i = 0; i < roots.length; i++) roots[i].style.display = visible ? '' : 'none';
-          report({ pageDisplay: visible ? 'shown' : 'hidden', roots: roots.length });
+          report({ pageDisplay: visible ? 'shown' : 'hidden' });
+          // dsh-pet 从"仅桌面"切回"仅页面"时偶尔不会重新挂载：切到"应显示"后 2.5 秒还没有视频，
+          // 就自己刷一次页面（60 秒内最多一次），保证宠物一定回来。
+          if (visible) {
+            setTimeout(function () {
+              if (document.querySelectorAll('video').length === 0
+                  && Date.now() - (window.__petReloadAt || 0) > 60000) {
+                window.__petReloadAt = Date.now();
+                report({ selfReload: 'pet-missing-after-display-change' });
+                location.reload();
+              }
+            }, 2500);
+          }
         }
         var vids = document.querySelectorAll('video');
         for (var k = 0; k < vids.length; k++) {
@@ -267,8 +316,7 @@ const TAIL = `
           var wpx = Math.round(r.width * (window.devicePixelRatio || 1));
           if (wpx > 20) {
             lastW = wpx;
-            fetch(url('size', '?w=' + wpx), { cache: 'no-store' })
-              .catch(function () { if (ep === 0) ep = 1; });
+            epFetch('size', '?w=' + wpx).catch(function () {});
           }
           break;
         }

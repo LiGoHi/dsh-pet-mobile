@@ -8,15 +8,15 @@
   html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;overflow:hidden;
     -webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
   /* 双缓冲：两块 video 叠着放，换源时旧的保持可见，新的就绪后交叉淡入 → 不再闪白 */
-  #stage{position:absolute;left:0;right:0;bottom:0;height:74%}
+  #stage{position:absolute;left:0;right:0;bottom:0;height:82.7%}
   video.layer{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;
     background:transparent;opacity:0;transform-origin:50% 60%}
   /* 不做淡入淡出：alpha 视频在半透明混合期容易露黑底，改为首帧就绪后硬切 */
   video.layer.on{opacity:1}
-  #fallback{position:absolute;left:0;right:0;bottom:0;height:74%;width:100%;object-fit:contain;display:none}
+  #fallback{position:absolute;left:0;right:0;bottom:0;height:82.7%;width:100%;object-fit:contain;display:none}
   /* 气泡：原版 .dsh-pet-bubble 的样式 */
   #bubble{
-    position:absolute;left:50%;top:2px;transform:translateX(-50%);
+    position:absolute;left:50%;top:2px;transform:translateX(-50%);max-height:16%;
     width:max-content;min-width:calc(var(--f)*5.7143);max-width:92%;
     padding:calc(var(--f)*0.4835) calc(var(--f)*0.6593);
     border-radius:calc(var(--f)*0.7692);
